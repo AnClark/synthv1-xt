@@ -1,6 +1,12 @@
 [submodule "dpf"]
-	path = dpf
+	path = deps/dpf
 	url = https://github.com/DISTRHO/DPF.git
 [submodule "src"]
 	path = src
 	url = https://github.com/rncbc/synthv1.git
+[submodule "deps/dpf-widgets"]
+	path = deps/dpf-widgets
+	url = https://github.com/DISTRHO/DPF-Widgets.git
+[submodule "ui/veeone-widgets"]
+	path = ui/veeone-widgets
+	url = https://github.com/AnClark/veeone-widget-demo.git

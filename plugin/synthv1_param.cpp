@@ -2,7 +2,7 @@
 //
 /****************************************************************************
    Copyright (C) 2012-2021, rncbc aka Rui Nuno Capela.
-   Copyright (C) 2023, AnClark Liu.
+   Copyright (C) 2023-2024, AnClark Liu.
    All rights reserved.
 
    This program is free software; you can redistribute it and/or
@@ -288,6 +288,47 @@ bool synthv1_param::paramBool ( synthv1::ParamIndex index )
 bool synthv1_param::paramInt ( synthv1::ParamIndex index )
 {
 	return (synthv1_params[index].type == PARAM_INT);
+}
+
+std::string synthv1_param::paramDisplayImGui(synthv1::ParamIndex index, float fValue, bool isZeroMeansOff)
+{
+	// TODO: Does this has performance issue?
+
+	const ParamInfo& param = synthv1_params[index];
+	char str_buffer[32];
+
+#if 1
+	switch (index)
+	{
+		case synthv1::LFO1_BPM:
+		case synthv1::LFO2_BPM:
+		case synthv1::DEL1_BPM:
+			snprintf(str_buffer, 32, "%.0f", fValue);
+			break;
+		
+		case synthv1::DCO1_WIDTH1:
+		case synthv1::DCO1_WIDTH2:
+		case synthv1::LFO1_WIDTH:
+		case synthv1::LFO2_WIDTH:
+			snprintf(str_buffer, 32, "%.0f", fValue * 100.0f);
+			break;
+		
+		case synthv1::DEF1_CHANNEL:
+		case synthv1::DEF2_CHANNEL:
+			snprintf(str_buffer, 32, fValue == 0.0f ? "Omni" : "%.0f", fValue);
+			break;
+
+		default:
+			snprintf(str_buffer, 32, isZeroMeansOff ? (fValue == 0.0f ? "Off" : "%.1f") : "%.1f", fValue * 100.0f);
+			break;
+	}
+#else
+	snprintf(str_buffer, 32, 
+		isZeroMeansOff ? (fValue == 0.0f ? "Off" : "%.1f") : "%.1f", 
+				(index == synthv1::LFO1_BPM || index == synthv1::LFO2_BPM || index == synthv1::DEL1_BPM) ? fValue : fValue * 100.0f);
+#endif
+	
+	return std::string(str_buffer);
 }
 
 
