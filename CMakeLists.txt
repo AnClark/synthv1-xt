@@ -62,8 +62,6 @@ set (CONFIG_MANDIR  "${CONFIG_PREFIX}/${CMAKE_INSTALL_MANDIR}")
 
 # Enable DPF (DISTRHO Plugin Framework) plugin build.
 
-option (CONFIG_DPF "Enable DPF (DISTRHO Plugin Framework) plug-in build (default=yes)" 1)
-
 option (CONFIG_DPF_VST2 "Enable VST plug-in support (via DPF) (default=yes)" 1)
 
 option (CONFIG_DPF_VST3 "Enable VST3 plug-in support (via DPF) (default=yes)" 1)
@@ -81,9 +79,6 @@ if (WIN32)
   set (CONFIG_WINDOWS_CLAP_PATH "$ENV{SYSTEMDRIVE}/Program Files/Common Files/CLAP" CACHE STRING "Specify Windows CLAP install path")
 endif ()
 
-
-# Enable Wayland support option.
-option (CONFIG_WAYLAND "Enable Wayland support (EXPERIMENTAL) (default=no)" 0)
 
 # Enable Qt6 build preference.
 option (CONFIG_QT6 "Enable Qt6 build (default=yes)" 1)
@@ -115,7 +110,7 @@ else ()
   find_package (QT QUIET NAMES Qt5)
 endif ()
 
-find_package (Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui Widgets Xml Svg)
+find_package (Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Xml)
 
 #find_package (Qt${QT_VERSION_MAJOR}LinguistTools)
 
@@ -139,10 +134,8 @@ include (FindPkgConfig)
 
 
 # Build DPF plugins
-if (CONFIG_DPF)
-  add_subdirectory ("${PROJECT_SOURCE_DIR}/dpf")
-  add_subdirectory (plugin)
-endif ()
+add_subdirectory ("${PROJECT_SOURCE_DIR}/deps/dpf")
+add_subdirectory (plugin)
 
 
 # Configuration status
@@ -157,7 +150,6 @@ endmacro ()
 
 message   ("\n  ${PACKAGE_NAME} ${PACKAGE_VERSION} (Qt ${QT_VERSION})")
 message   ("\n  Build target . . . . . . . . . . . . . . . . . . .: ${CONFIG_BUILD_TYPE}\n")
-show_option ("  DPF (DISTRHO Plugin Framework) support . . . . . ." CONFIG_DPF)
 show_option ("  VST plug-in build (via DPF)  . . . . . . . . . . ." CONFIG_DPF_VST2)
 show_option ("  VST3 plug-in build (via DPF) . . . . . . . . . . ." CONFIG_DPF_VST3)
 show_option ("  LV2 plug-in build (via DPF)  . . . . . . . . . . ." CONFIG_DPF_LV2)
