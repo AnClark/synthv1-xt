@@ -1,7 +1,7 @@
 // synthv1_dpfui.cpp
 //
 /****************************************************************************
-   Copyright (C) 2023, AnClark Liu. All rights reserved.
+   Copyright (C) 2023-2024, AnClark Liu. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -20,11 +20,12 @@
 *****************************************************************************/
 
 #include "synthv1_dpfui.h"
-#include "synthv1_dpf.h"
 
-#include <QWindow>
-#include <QApplication>
-#include <QMainWindow>
+#include "DearImGui/imgui.h"
+#include "DistrhoPluginInfo.h"
+
+#include "synthv1.h"
+#include "synthv1_dpf.h"
 
 //-------------------------------------------------------------------------
 // SynthV1PluginUI - DPF Plugin UI interface.
@@ -33,132 +34,96 @@
 START_NAMESPACE_DISTRHO
 
 SynthV1PluginUI::SynthV1PluginUI()
-	: UI(), fWidget(nullptr)
+    : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT, true),
+      fResizeHandle(this)
 {
-	// Print out DPF standalone mode state.
-	const bool standalone = isStandalone();
-	d_stdout("isStandalone %d", (int)standalone);
+    setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT, true);
 
-	// synthv1 UI requires directly accessing synth instance.
-	// This is discouraged by DPF, but synthv1 do need this due to its designation.
-	SynthV1Plugin *fDspInstance = (SynthV1Plugin*) UI::getPluginInstancePointer();
+    // hide handle if UI is resizable
+    if (isResizable())
+        fResizeHandle.hide();
 
-	// Load background window.
-	// Showing UI within background window can prevent unexpected "ghost shadows" when resizing.
-	fWindow = std::make_unique<QMainWindow>();
+    // Set default params
+    fCurrentView = View::Synth1;    // Default UI view
 
-	// Load synthv1 main UI part.
-	fWidget = std::make_unique<synthv1widget_dpf>(fDspInstance->getSynthesizer(), this);
-
-	// Set minimum size
-	m_widgetSize = fWidget->sizeHint();
-	m_widgetSize.setHeight(m_widgetSize.height() * getScaleFactor());
-	m_widgetSize.setWidth(m_widgetSize.width() * getScaleFactor());
-	fWidget->setMinimumSize(m_widgetSize);
-	fWindow->setMinimumSize(m_widgetSize);
-
-	// Embed synthv1 UI part into background window
-	fWidget->setParent(&*fWindow);
-
-	// Explicitly set window position to avoid misplace on some platforms (especially Windows)
-	fWidget->move(0, 0);
-
-	// Embed plug-in UI into host window.
-	fParent = (WId) getParentWindowHandle();
-	fWinId = fWindow->winId();	// Must require WinID first, otherwise plug-in will crash!
-	if (fParent)
-	{
-		fWindow->windowHandle()->setParent(QWindow::fromWinId(fParent));
-	}
-
-	// Explicitly show UI. This is required when using external UI mode of DPF.
-	fWindow->show();
+    // Obtain plugin config dir
+    fConfigDir = get_system_config_dir() + "/synthv1";
+    d_stderr("Config dir: %s", fConfigDir.buffer());
 }
 
-SynthV1PluginUI::~SynthV1PluginUI()
-{
-	// NOTICE: Now fWidget is already managed by unique pointer. No need to clean up manually.
-}
+// ----------------------------------------------------------------------------------------------------------------
+// DSP/Plugin Callbacks
 
-/* --------------------------------------------------------------------------------------------------------
-* DSP/Plugin Callbacks */
-
-/**
-	A parameter has changed on the plugin side.
-	This is called by the host to inform the UI about parameter changes.
-*/
 void SynthV1PluginUI::parameterChanged(uint32_t index, float value)
 {
-	DISTRHO_SAFE_ASSERT_RETURN(fWidget != nullptr,);
-	fWidget->setUIParamValue(synthv1::ParamIndex(index), value);
+    DISTRHO_SAFE_ASSERT_RETURN(index >= 0 && index < synthv1::NUM_PARAMS, )
+
+    fParamStorage[index] = value;
+
+    repaint();
 }
 
-/* --------------------------------------------------------------------------------------------------------
-* External Window overrides */
+// ----------------------------------------------------------------------------------------------------------------
+// Widget Callbacks
 
-void SynthV1PluginUI::focus()
+void SynthV1PluginUI::onImGuiDisplay()
 {
-	d_stdout("focus");
+    const float width = getWidth();
+    const float height = getHeight();
+    const float margin = 20.0f * getScaleFactor();
 
-	fWidget->setFocus();
-}
+    static constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
 
-uintptr_t SynthV1PluginUI::getNativeWindowHandle() const noexcept
-{
-	return (uintptr_t)fWidget->windowHandle()->winId();
-}
+    // We demonstrate using the full viewport area or the work area (without menu-bars, task-bars etc.)
+    // Based on your use case you may want one or the other.
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
 
-void SynthV1PluginUI::sizeChanged(uint width, uint height)
-{
-	UI::sizeChanged(width, height);
+    if (ImGui::Begin(DISTRHO_PLUGIN_NAME, nullptr, flags))
+    {
+        [[maybe_unused]] constexpr uint32_t PADDING_L_R = 20;
 
-	if (fWindow != nullptr) {
-		fWindow->resize(width, height);
-		fWidget->resize(width, height);
-	}
-}
+        static constexpr ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
+        
+        ImGui::BeginGroup();
+        {
+            if (ImGui::Button("Panic"))
+            {
+                _panic();
+            }
+            ImGui::SameLine(0, 40);
 
-void SynthV1PluginUI::titleChanged(const char* const title)
-{
-	d_stdout("titleChanged %s", title);
+            if (ImGui::Button("Random"))
+            {
+                _randomParams();
+            }
+            ImGui::SameLine(0, 40);
 
-	DISTRHO_SAFE_ASSERT_RETURN(fWidget != nullptr,);
-	fWidget->setWindowTitle(QString(title));
-}
+            _addViewSwitchButton("Synth 1", View::Synth1); ImGui::SameLine();
+            _addViewSwitchButton("Synth 2", View::Synth2); ImGui::SameLine();
+            _addViewSwitchButton("Effects", View::Effects);
+        }
+        ImGui::EndGroup();
 
-void SynthV1PluginUI::transientParentWindowChanged(const uintptr_t winId)
-{
-	d_stdout("transientParentWindowChanged %lu", winId);
+        ImGui::Separator();
 
-	DISTRHO_SAFE_ASSERT_RETURN(fWidget != nullptr,);
-	// NOTICE: Seems not implemented by Qt
-}
-
-void SynthV1PluginUI::visibilityChanged(const bool visible)
-{
-	d_stdout("visibilityChanged %d", visible);
-
-	DISTRHO_SAFE_ASSERT_RETURN(fWindow != nullptr,);
-
-	if (visible)
-	{
-		fWindow->show();
-		fWindow->raise();
-		fWindow->activateWindow();
-	}
-	else
-		fWindow->hide();
-}
-
-void SynthV1PluginUI::uiIdle()
-{
-	// d_stdout("uiIdle");
-
-	if (fWidget != nullptr)
-	{
-		QApplication::processEvents();
-		return;
-	}
+        switch (fCurrentView)
+        {
+            case View::Synth1:
+                _uiView_Synth(true);    // true means Synth 1
+                break;
+            
+            case View::Synth2:
+                _uiView_Synth(false);   // false means Synth 2
+                break;
+            
+            case View::Effects:
+                _uiView_Effects();
+                break;
+        }
+    }
+    ImGui::End();
 }
 
 /* ------------------------------------------------------------------------------------------------------------

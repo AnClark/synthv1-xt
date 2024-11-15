@@ -1,7 +1,7 @@
 // synthv1_dpf.cpp
 //
 /****************************************************************************
-   Copyright (C) 2023, AnClark Liu. All rights reserved.
+   Copyright (C) 2023-2024, AnClark Liu. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -20,12 +20,7 @@
 *****************************************************************************/
 
 #include "synthv1_dpf.h"
-#include "synthv1_config.h"
 #include "synthv1_param.h"
-
-#include "DistrhoPluginUtils.hpp"
-
-#include <QApplication>
 
 //-------------------------------------------------------------------------
 // synthv1_dpf - Constants.
@@ -184,47 +179,12 @@ static const char *ParamNames[synthv1::NUM_PARAMS] = {
 // synthv1_dpf - Instantiation and cleanup.
 //
 
-QApplication *synthv1_dpf::g_qapp_instance = nullptr;
-unsigned int synthv1_dpf::g_qapp_refcount = 0;
-
 synthv1_dpf::synthv1_dpf(double sample_rate) : synthv1(2, float(sample_rate))
 {
 }
 
 synthv1_dpf::~synthv1_dpf()
 {
-}
-
-void synthv1_dpf::qapp_instantiate(void)
-{
-	if (qApp == nullptr && g_qapp_instance == nullptr)
-	{
-		static int s_argc = 1;
-		static const char *s_argv[] = {SYNTHV1_TITLE, nullptr};
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
-		::_putenv_s("QT_NO_GLIB", "1"); // Avoid glib event-loop...
-#else
-		::setenv("QT_NO_GLIB", "1", 1); // Avoid glib event-loop...
-#endif
-		g_qapp_instance = new QApplication(s_argc, (char **)s_argv);
-	}
-
-	if (g_qapp_instance)
-		++g_qapp_refcount;
-}
-
-void synthv1_dpf::qapp_cleanup(void)
-{
-	if (g_qapp_instance && --g_qapp_refcount == 0)
-	{
-		delete g_qapp_instance;
-		g_qapp_instance = nullptr;
-	}
-}
-
-QApplication *synthv1_dpf::qapp_instance(void)
-{
-	return g_qapp_instance;
 }
 
 //-------------------------------------------------------------------------
@@ -236,7 +196,7 @@ void synthv1_dpf::updatePreset(bool /*bDirty*/)
 	// NOTICE: No need to tell DPF about preset changes, since DPF knows it
 	//         when parameter changes from UI side.
 	//         Also "synthesizer -> plug-in" access is not essential in DPF.
-	//         See: synthv1widget_dpf::updateParam.
+	//         See: synthv1widget_dpf::updateParam (https://github.com/AnClark/synthv1-universal/blob/main/plugin/synthv1widget_dpf.cpp).
 }
 
 void synthv1_dpf::updateParam(synthv1::ParamIndex index)
@@ -268,15 +228,73 @@ void synthv1_dpf::deactivate(void)
 void synthv1_dpf::run(const float **inputs, float **outputs, uint32_t nframes, const MidiEvent *midiEvents,
 					  uint32_t midiEventCount)
 {
-	for (AudioMidiSyncHelper amsh(outputs, nframes, midiEvents, midiEventCount); amsh.nextEvent();)
+#if 1
+	// Official synthv1's process procedure. Supports multi-channel.
+	// Adapted from synthv1_jack.cpp (synthv1_jack::process()).
+
+	const uint16_t nchannels = synthv1::channels();
+	uint32_t ndelta = 0;
+
+	for (uint32_t event_index = 0; event_index < midiEventCount; ++event_index)
 	{
-		for (uint32_t i = 0; i < amsh.midiEventCount; ++i)
+		const MidiEvent &event = midiEvents[event_index];
+
+		if (event.frame > ndelta)
 		{
-			const MidiEvent &ev(amsh.midiEvents[i]);
-			synthv1::process_midi((uint8_t *)ev.data, ev.size);
+			const uint32_t nread = event.frame - ndelta;
+			if (nread > 0)
+			{
+				synthv1::process(const_cast<float**>(inputs), outputs, nread);
+				for (uint16_t k = 0; k < nchannels; ++k) {
+					inputs[k]  += nread;
+					outputs[k] += nread;
+				}
+			}
 		}
 
-		synthv1::process((float **)inputs, amsh.outputs, amsh.frames);
+		// Handle panic (SysEx "F0 7B") event.
+		_checkAndHandlePanicEvent(event);
+
+		// Handle all MIDI events.
+		synthv1::process_midi(const_cast<uint8_t*>(event.data), event.size);
+	}
+
+	if (nframes > ndelta)
+		synthv1::process(const_cast<float**>(inputs), outputs, nframes - ndelta);
+
+#else
+	// Classic way to render the synthesizer.
+	// Stable and fluent enough, but I still prefer rncbc's standard procedure.
+	for (uint32_t event_index = 0; event_index < midiEventCount; ++event_index)
+	{
+		// Handle panic (SysEx "F0 7B") event.
+		_checkAndHandlePanicEvent(midiEvents[event_index]);
+
+		// Handle all MIDI events.
+		synthv1::process_midi(const_cast<uint8_t*>(midiEvents[event_index].data), midiEvents[event_index].size);
+	}
+
+	synthv1::process(const_cast<float**>(inputs), outputs, nframes);
+#endif
+}
+
+// NOTE:  Assigning "MIDI All Notes Off / All Sound Off" as panic message is just a workaround,
+//        not a permanent solution.
+//        That's because synthv1 allows re-assigning "MIDI All Notes Off / All Sound Off" CC.
+//
+//        In order not to break DPF's policy, a better way is to pass messages via SysEx.
+//        (However, in future, to implement MIDI Learn, UI direct access may be essential!)
+//
+//        I define SysEx "F0 7B" as "panic" command. "7B" is the same as MIDI_ALL_NOTES_OFF.
+void synthv1_dpf::_checkAndHandlePanicEvent(const MidiEvent& currentEvent)
+{
+	const int status  = (currentEvent.data[0] & 0xf0);
+	const int key = (currentEvent.data[1] & 0x7f);
+
+	if (status == 0xf0 && key == 0x7b)	[[unlikely]] // SysEx Panic command
+	{
+		d_stderr2("Panic command (F0 7B) detected");
+		synthv1::reset();
 	}
 }
 
@@ -288,24 +306,22 @@ START_NAMESPACE_DISTRHO
 
 SynthV1Plugin::SynthV1Plugin() : Plugin(synthv1::NUM_PARAMS, 0, 0) // parameters, programs, states
 {
-	synthv1_dpf::qapp_instantiate();
 }
 
 SynthV1Plugin::~SynthV1Plugin()
 {
-	synthv1_dpf::qapp_cleanup();
 }
 
 synthv1_dpf *SynthV1Plugin::getSynthesizer()
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, nullptr)
 
 	return &(*fSynthesizer); // Unique pointer ==> standard pointer
 }
 
 void SynthV1Plugin::initParameter(uint32_t index, Parameter &parameter)
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, )
 
 	synthv1::ParamIndex currentParam = (synthv1::ParamIndex)index;
 
@@ -334,27 +350,21 @@ void SynthV1Plugin::initParameter(uint32_t index, Parameter &parameter)
 
 float SynthV1Plugin::getParameterValue(uint32_t index) const
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
-
-	if ((synthv1_dpf::ParamIndex)index == synthv1::DCO1_SHAPE1)
-		d_stderr("Get DCO_SHAPE1 value = %f", fSynthesizer->paramValue(synthv1::DCO1_SHAPE1));
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, 0.0f)
 
 	return fSynthesizer->paramValue((synthv1::ParamIndex)index);
 }
 
 void SynthV1Plugin::setParameterValue(uint32_t index, float value)
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
-
-	if ((synthv1_dpf::ParamIndex)index == synthv1::DCO1_SHAPE1)
-		d_stderr("Set DCO_SHAPE1 value = %f", value);
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, )
 
 	fSynthesizer->setParamValue((synthv1::ParamIndex)index, value);
 }
 
 void SynthV1Plugin::activate()
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, )
 
 	fSynthesizer->activate();
 }
@@ -362,14 +372,23 @@ void SynthV1Plugin::activate()
 void SynthV1Plugin::run(const float **inputs, float **outputs, uint32_t frames, const MidiEvent *midiEvents,
 						uint32_t midiEventCount)
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, )
 
 	fSynthesizer->run(inputs, outputs, frames, midiEvents, midiEventCount);
+
+	// Measure BPM, then apply to synthesizer
+	const TimePosition& timePos(getTimePosition());
+	if (timePos.bbt.valid)
+	{
+		const float host_bpm = timePos.bbt.beatsPerMinute;
+		if (::fabsf(host_bpm - fSynthesizer->tempo()) > 0.001f)
+			fSynthesizer->setTempo(host_bpm);
+	}
 }
 
 void SynthV1Plugin::sampleRateChanged(double newSampleRate)
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, )
 
 	fSynthesizer->setSampleRate(newSampleRate);
 }

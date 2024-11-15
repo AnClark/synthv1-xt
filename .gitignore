@@ -3,3 +3,6 @@ build*/**
 
 # Cache
 .cache
+
+# Dear ImGui temp files
+imgui.ini

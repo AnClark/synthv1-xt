@@ -2,7 +2,7 @@
 //
 /****************************************************************************
    Copyright (C) 2012-2021, rncbc aka Rui Nuno Capela.
-   Copyright (C) 2023, AnClark Liu.
+   Copyright (C) 2023-2024, AnClark Liu.
    All rights reserved.
 
    This program is free software; you can redistribute it and/or
@@ -64,6 +64,9 @@ namespace synthv1_param
 	bool paramFloat(synthv1::ParamIndex index);
 	bool paramBool(synthv1::ParamIndex index);
 	bool paramInt(synthv1::ParamIndex index);
+
+	// Extentions for Dear ImGui
+	std::string paramDisplayImGui(synthv1::ParamIndex index, float fValue, bool isZeroMeansOff);
 
 	// Load/save and convert canonical/absolute filename helpers.
 	QString loadFilename(const QString& sFilename);
