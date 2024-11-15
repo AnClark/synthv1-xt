@@ -2,7 +2,7 @@
 //
 /****************************************************************************
    Copyright (C) 2012-2021, rncbc aka Rui Nuno Capela.
-   Copyright (C) 2023, AnClark Liu.
+   Copyright (C) 2023-2024, AnClark Liu.
    All rights reserved.
 
    This program is free software; you can redistribute it and/or
@@ -203,9 +203,165 @@ struct ParamInfo {
 };
 
 
+// Parameter names - extracted from LV2 definition
+static const char *synthv1_param_full_names[synthv1::NUM_PARAMS] = {
+	"DCO1 Wave Shape 1",
+	"DCO1 Wave Width 1",
+	"DCO1 Wave Bandlimit 1",
+	"DCO1 Wave Sync 1",
+	"DCO1 Wave Shape 2",
+	"DCO1 Width 2",
+	"DCO1 Wave Bandlimit 2",
+	"DCO1 Wave Sync 2",
+	"DCO1 Balance",
+	"DCO1 Detune",
+	"DCO1 Phase",
+	"DCO1 Ring Mod",
+	"DCO1 Octave",
+	"DCO1 Tuning",
+	"DCO1 Glide",
+	"DCO1 Env.Time",
+	"DCF1 Enabled",
+	"DCF1 Cutoff",
+	"DCF1 Resonance",
+	"DCF1 Type",
+	"DCF1 Slope",
+	"DCF1 Envelope",
+	"DCF1 Attack",
+	"DCF1 Decay",
+	"DCF1 Sustain",
+	"DCF1 Release",
+	"LFO1 Enabled",
+	"LFO1 Wave Shape",
+	"LFO1 Wave Width",
+	"LFO1 BPM",
+	"LFO1 Rate",
+	"LFO1 Sync",
+	"LFO1 Sweep",
+	"LFO1 Pitch",
+	"LFO1 Balance",
+	"LFO1 Ring Mod",
+	"LFO1 Cutoff",
+	"LFO1 Resonance",
+	"LFO1 Panning",
+	"LFO1 Volume",
+	"LFO1 Attack",
+	"LFO1 Decay",
+	"LFO1 Sustain",
+	"LFO1 Release",
+	"DCA1 Volume",
+	"DCA1 Attack",
+	"DCA1 Decay",
+	"DCA1 Sustain",
+	"DCA1 Release",
+	"OUT1 Stereo Width",
+	"OUT1 Panning",
+	"OUT1 FX Send",
+	"OUT1 Volume",
+	"DEF1 Pitchbend",
+	"DEF1 Modwheel",
+	"DEF1 Pressure",
+	"DEF1 Velocity",
+	"DEF1 Channel",
+	"DEF1 Mono",
+	"DCO2 Wave Shape 1",
+	"DCO2 Wave Width 1",
+	"DCO2 Wave Bandlimit 1",
+	"DCO2 Wave Sync 1",
+	"DCO2 Wave Shape 2",
+	"DCO2 Wave Width 2",
+	"DCO2 Wave Bandlimit 2",
+	"DCO2 Wave Sync 2",
+	"DCO2 Balance",
+	"DCO2 Detune",
+	"DCO2 Phase",
+	"DCO2 Ring Mod",
+	"DCO2 Octave",
+	"DCO2 Tuning",
+	"DCO2 Glide",
+	"DCO2 Env.Time",
+	"DCF2 Enabled",
+	"DCF2 Cutoff",
+	"DCF2 Resonance",
+	"DCF2 Type",
+	"DCF2 Slope",
+	"DCF2 Envelope",
+	"DCF2 Attack",
+	"DCF2 Decay",
+	"DCF2 Sustain",
+	"DCF2 Release",
+	"LFO2 Enabled",
+	"LFO2 Wave Shape",
+	"LFO2 Wave Width",
+	"LFO2 BPM",
+	"LFO2 Rate",
+	"LFO2 Sync",
+	"LFO2 Sweep",
+	"LFO2 Pitch",
+	"LFO2 Balance",
+	"LFO2 Ring Mod",
+	"LFO2 Cutoff",
+	"LFO2 Resonance",
+	"LFO2 Panning",
+	"LFO2 Volume",
+	"LFO2 Attack",
+	"LFO2 Decay",
+	"LFO2 Sustain",
+	"LFO2 Release",
+	"DCA2 Volume",
+	"DCA2 Attack",
+	"DCA2 Decay",
+	"DCA2 Sustain",
+	"DCA2 Release",
+	"OUT2 Stereo Width",
+	"OUT2 Panning",
+	"OUT2 FX Send",
+	"OUT2 Volume",
+	"DEF2 Pitchbend",
+	"DEF2 Modwheel",
+	"DEF2 Pressure",
+	"DEF2 Velocity",
+	"DEF2 Channel",
+	"DEF2 Mono",
+	"Chorus Wet",
+	"Chorus Delay",
+	"Chorus Feedback",
+	"Chorus Rate",
+	"Chorus Modulation",
+	"Flanger Wet",
+	"Flanger Delay",
+	"Flanger Feedback",
+	"Flanger Daft",
+	"Phaser Wet",
+	"Phaser Rate",
+	"Phaser Feedback",
+	"Phaser Depth",
+	"Phaser Daft",
+	"Delay Wet",
+	"Delay Delay",
+	"Delay Feedback",
+	"Delay BPM",
+	"Reverb Wet",
+	"Reverb Room",
+	"Reverb Damp",
+	"Reverb Feedback",
+	"Reverb Width",
+	"Dynamic Compressor",
+	"Dynamic Limiter",
+	"Keyboard Low",
+	"Keyboard High"
+};
+
+
 const char *synthv1_param::paramName ( synthv1::ParamIndex index )
 {
 	return synthv1_params[index].name;
+}
+
+
+const char *synthv1_param::paramFullName ( synthv1::ParamIndex index )
+{
+	return synthv1_param_full_names[index];
 }
 
 
@@ -288,6 +444,49 @@ bool synthv1_param::paramBool ( synthv1::ParamIndex index )
 bool synthv1_param::paramInt ( synthv1::ParamIndex index )
 {
 	return (synthv1_params[index].type == PARAM_INT);
+}
+
+std::string synthv1_param::paramDisplayImGui(synthv1::ParamIndex index, float fValue, bool isZeroMeansOff)
+{
+	// TODO: Does this has performance issue?
+
+	const ParamInfo& param = synthv1_params[index];
+	char str_buffer[32];
+
+#if 1
+	switch (index)
+	{
+		case synthv1::LFO1_BPM:
+		case synthv1::LFO2_BPM:
+		case synthv1::DEL1_BPM:
+			snprintf(str_buffer, 32, "%.0f", fValue);
+			break;
+		
+		case synthv1::DCO1_WIDTH1:
+		case synthv1::DCO1_WIDTH2:
+		case synthv1::DCO2_WIDTH1:
+		case synthv1::DCO2_WIDTH2:
+		case synthv1::LFO1_WIDTH:
+		case synthv1::LFO2_WIDTH:
+			snprintf(str_buffer, 32, "%.0f", fValue * 100.0f);
+			break;
+		
+		case synthv1::DEF1_CHANNEL:
+		case synthv1::DEF2_CHANNEL:
+			snprintf(str_buffer, 32, fValue == 0.0f ? "Omni" : "%.0f", fValue);
+			break;
+
+		default:
+			snprintf(str_buffer, 32, isZeroMeansOff ? (fValue == 0.0f ? "Off" : "%.1f") : "%.1f", fValue * 100.0f);
+			break;
+	}
+#else
+	snprintf(str_buffer, 32, 
+		isZeroMeansOff ? (fValue == 0.0f ? "Off" : "%.1f") : "%.1f", 
+				(index == synthv1::LFO1_BPM || index == synthv1::LFO2_BPM || index == synthv1::DEL1_BPM) ? fValue : fValue * 100.0f);
+#endif
+	
+	return std::string(str_buffer);
 }
 
 

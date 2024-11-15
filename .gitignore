@@ -3,3 +3,9 @@ build*/**
 
 # Cache
 .cache
+
+# Dear ImGui temp files
+imgui.ini
+
+# Linux Perf tool data
+perf.data*

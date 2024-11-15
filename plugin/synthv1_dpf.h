@@ -1,7 +1,7 @@
 // synthv1_dpf.h
 //
 /****************************************************************************
-   Copyright (C) 2023, AnClark Liu. All rights reserved.
+   Copyright (C) 2023-2024, AnClark Liu. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -29,9 +29,6 @@
 
 #include <memory>
 
-// Forward decls.
-class QApplication;
-
 
 //-------------------------------------------------------------------------
 // synthv1_dpf - Synthesizer interface decl.
@@ -52,11 +49,6 @@ public:
 
 	uint32_t urid_map(const char *uri) const;
 
-	static void qapp_instantiate();
-	static void qapp_cleanup();
-
-	static QApplication *qapp_instance();
-
 protected:
 
 	void updatePreset(bool bDirty);
@@ -68,16 +60,13 @@ protected:
 
 private:
 
-	static QApplication *g_qapp_instance;
-	static unsigned int  g_qapp_refcount;
+	void _checkAndHandlePanicEvent(const MidiEvent& currentEvent);
 };
 
 
 //-------------------------------------------------------------------------
 // SynthV1Plugin - The main DPF plugin interface decl.
 //
-
-START_NAMESPACE_DISTRHO
 
 class SynthV1Plugin : public Plugin
 {
@@ -100,7 +89,7 @@ protected:
 	*/
 	const char* getLabel() const noexcept override
 	{
-		return "synthv1";
+		return "synthv1 XT";
 	}
 
    /**
@@ -117,7 +106,7 @@ protected:
 	*/
 	const char* getMaker() const noexcept override
 	{
-		return "rncbc aka. Rui Nuno Capela";
+		return "rncbc aka. Rui Nuno Capela, AnClark Liu";
 	}
 
    /**
@@ -174,8 +163,6 @@ protected:
 
 	DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SynthV1Plugin)
 };
-
-END_NAMESPACE_DISTRHO
 
 #endif// __synthv1_dpf_h
 
