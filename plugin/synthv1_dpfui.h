@@ -1,7 +1,7 @@
 // synthv1_dpfui.h
 //
 /****************************************************************************
-   Copyright (C) 2023, AnClark Liu. All rights reserved.
+   Copyright (C) 2023-2024, AnClark Liu. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -22,63 +22,76 @@
 #ifndef __synthv1_dpfui_h
 #define __synthv1_dpfui_h
 
-#include "synthv1widget_dpf.h"
-
 #include "DistrhoUI.hpp"
+#include "synthv1_ui.h"
+
+#include "synthv1_wave.h"
+
+#include "ResizeHandle.hpp"
 
 // Forward decls.
 class synthv1_dpf;
-class QMainWindow;
+class synthv1_wave_lf;
 
 // -----------------------------------------------------------------------------------------------------------
 // SynthV1PluginUI - DPF Plugin UI interface.
 
 START_NAMESPACE_DISTRHO
 
-class SynthV1PluginUI : public UI {
-
-	std::unique_ptr<QMainWindow> fWindow;	// Background window
-	std::unique_ptr<synthv1widget_dpf> fWidget;	// The main UI part
-	WId fWinId;
-	WId fParent;
-
-	QSize m_widgetSize;	// Target Qt UI size with scale factor considered
-
-	// ----------------------------------------------------------------------------------------------------------------
-
+class SynthV1PluginUI : public UI
+{
 public:
-	SynthV1PluginUI();
-	~SynthV1PluginUI();
+    SynthV1PluginUI();
 
 protected:
-	// ----------------------------------------------------------------------------------------------------------------
-	// DSP/Plugin Callbacks
-
-	void parameterChanged(uint32_t index, float value) override;
-	//void programLoaded(uint32_t index) override;
-	//void stateChanged(const char* key, const char* value) override;
-
-	// ----------------------------------------------------------------------------------------------------------------
-	// External window overrides
-
-	void focus() override;
-	uintptr_t getNativeWindowHandle() const noexcept override;
-	void sizeChanged(uint width, uint height) override;
-	void titleChanged(const char* const title) override;
-	void transientParentWindowChanged(const uintptr_t winId) override;
-	void visibilityChanged(const bool visible) override;
-	void uiIdle() override;
+    void parameterChanged(uint32_t index, float value) override;
+    void onImGuiDisplay() override;
 
 private:
-	// ----------------------------------------------------------------------------------------------------------------
-	// Internal Procedures
+    float fParamStorage[synthv1::NUM_PARAMS];   // Store param values locally for operating with Dear ImGui widgets
+    ResizeHandle fResizeHandle;
 
-	void _initParameterProperties();
+    synthv1_wave_lf fOscWave1, fOscWave2, fLfoWave;
 
-	DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SynthV1PluginUI)
+    void _addKnob(const char* label, synthv1::ParamIndex paramIndex, bool isZeroMeansOff = false);   // Basic knob
+    void _addKnobInt(const char* label, synthv1::ParamIndex paramIndex);
+    void _addCheckbox(const char* label, synthv1::ParamIndex paramIndex);
+    void _addToggle_NoLabel(const char* id, synthv1::ParamIndex paramIndex);
+
+    void _addWaveSelector(const char* label, synthv1::ParamIndex paramIndex);
+    void _addFilterTypeSelector(const char* label, synthv1::ParamIndex paramIndex);
+    void _addFilterSlopeSelector(const char* label, synthv1::ParamIndex paramIndex);
+    void _addKeyboardModeSelector(const char* label, synthv1::ParamIndex paramIndex);
+
+    enum class View
+    {
+        Synth1 = 0,
+        Synth2,
+        Effects
+    };
+    View fCurrentView;
+    void _addViewSwitchButton(const char* label, View viewIndex);
+
+    void _uiView_Synth(bool isSynth1 = true);    // true: Synth 1; false: Synth 2
+    void _uiView_Effects();
+
+    // -----------------------------------------------------
+    // Utils
+
+    // Trim text after "##". This does the same behavior as ImGui::CalcTextSize().
+    inline std::string _trimAfterDoubleHash(const std::string& str) {
+        size_t pos = str.find("##");
+        if (pos != std::string::npos) {
+            return str.substr(0, pos);
+        }
+        return str;
+    }
+
+    void _randomParams();
+    
+
+    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SynthV1PluginUI)
 };
-
-// -----------------------------------------------------------------------------------------------------------
 
 END_NAMESPACE_DISTRHO
 

@@ -1,7 +1,7 @@
 // synthv1_dpf.h
 //
 /****************************************************************************
-   Copyright (C) 2023, AnClark Liu. All rights reserved.
+   Copyright (C) 2023-2024, AnClark Liu. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -30,7 +30,7 @@
 #include <memory>
 
 // Forward decls.
-class QApplication;
+//class QApplication;
 
 
 //-------------------------------------------------------------------------
@@ -55,7 +55,7 @@ public:
 	static void qapp_instantiate();
 	static void qapp_cleanup();
 
-	static QApplication *qapp_instance();
+	//static QApplication *qapp_instance();
 
 protected:
 
@@ -68,8 +68,8 @@ protected:
 
 private:
 
-	static QApplication *g_qapp_instance;
-	static unsigned int  g_qapp_refcount;
+	//static QApplication *g_qapp_instance;
+	//static unsigned int  g_qapp_refcount;
 };
 
 

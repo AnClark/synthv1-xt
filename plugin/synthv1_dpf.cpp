@@ -1,7 +1,7 @@
 // synthv1_dpf.cpp
 //
 /****************************************************************************
-   Copyright (C) 2023, AnClark Liu. All rights reserved.
+   Copyright (C) 2023-2024, AnClark Liu. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -20,12 +20,7 @@
 *****************************************************************************/
 
 #include "synthv1_dpf.h"
-#include "synthv1_config.h"
 #include "synthv1_param.h"
-
-#include "DistrhoPluginUtils.hpp"
-
-#include <QApplication>
 
 //-------------------------------------------------------------------------
 // synthv1_dpf - Constants.
@@ -184,8 +179,8 @@ static const char *ParamNames[synthv1::NUM_PARAMS] = {
 // synthv1_dpf - Instantiation and cleanup.
 //
 
-QApplication *synthv1_dpf::g_qapp_instance = nullptr;
-unsigned int synthv1_dpf::g_qapp_refcount = 0;
+//QApplication *synthv1_dpf::g_qapp_instance = nullptr;
+//unsigned int synthv1_dpf::g_qapp_refcount = 0;
 
 synthv1_dpf::synthv1_dpf(double sample_rate) : synthv1(2, float(sample_rate))
 {
@@ -195,8 +190,9 @@ synthv1_dpf::~synthv1_dpf()
 {
 }
 
-void synthv1_dpf::qapp_instantiate(void)
+[[maybe_unused]] void synthv1_dpf::qapp_instantiate(void)
 {
+#if 0
 	if (qApp == nullptr && g_qapp_instance == nullptr)
 	{
 		static int s_argc = 1;
@@ -211,21 +207,26 @@ void synthv1_dpf::qapp_instantiate(void)
 
 	if (g_qapp_instance)
 		++g_qapp_refcount;
+#endif
 }
 
-void synthv1_dpf::qapp_cleanup(void)
+[[maybe_unused]] void synthv1_dpf::qapp_cleanup(void)
 {
+#if 0
 	if (g_qapp_instance && --g_qapp_refcount == 0)
 	{
 		delete g_qapp_instance;
 		g_qapp_instance = nullptr;
 	}
+#endif
 }
 
-QApplication *synthv1_dpf::qapp_instance(void)
+#if 0
+[[maybe_unused]] QApplication *synthv1_dpf::qapp_instance(void)
 {
 	return g_qapp_instance;
 }
+#endif
 
 //-------------------------------------------------------------------------
 // synthv1_dpf - methods impl.
@@ -236,7 +237,7 @@ void synthv1_dpf::updatePreset(bool /*bDirty*/)
 	// NOTICE: No need to tell DPF about preset changes, since DPF knows it
 	//         when parameter changes from UI side.
 	//         Also "synthesizer -> plug-in" access is not essential in DPF.
-	//         See: synthv1widget_dpf::updateParam.
+	//         See: synthv1widget_dpf::updateParam (https://github.com/AnClark/synthv1-universal/blob/main/plugin/synthv1widget_dpf.cpp).
 }
 
 void synthv1_dpf::updateParam(synthv1::ParamIndex index)
@@ -268,6 +269,7 @@ void synthv1_dpf::deactivate(void)
 void synthv1_dpf::run(const float **inputs, float **outputs, uint32_t nframes, const MidiEvent *midiEvents,
 					  uint32_t midiEventCount)
 {
+#if 0	// WARNING: AMSH is fast, but it makes glide effect unavailable! So I disabled it.
 	for (AudioMidiSyncHelper amsh(outputs, nframes, midiEvents, midiEventCount); amsh.nextEvent();)
 	{
 		for (uint32_t i = 0; i < amsh.midiEventCount; ++i)
@@ -278,6 +280,14 @@ void synthv1_dpf::run(const float **inputs, float **outputs, uint32_t nframes, c
 
 		synthv1::process((float **)inputs, amsh.outputs, amsh.frames);
 	}
+#else	// Now, use our classic, stable way to render the synthesizer.
+    for (uint32_t event_index = 0; event_index < midiEventCount; ++event_index)
+    {
+        synthv1::process_midi((uint8_t*)midiEvents[event_index].data, midiEvents[event_index].size);
+    }
+
+	synthv1::process(const_cast<float**>(inputs), outputs, nframes);
+#endif
 }
 
 //-------------------------------------------------------------------------
@@ -298,14 +308,14 @@ SynthV1Plugin::~SynthV1Plugin()
 
 synthv1_dpf *SynthV1Plugin::getSynthesizer()
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, nullptr)
 
 	return &(*fSynthesizer); // Unique pointer ==> standard pointer
 }
 
 void SynthV1Plugin::initParameter(uint32_t index, Parameter &parameter)
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, )
 
 	synthv1::ParamIndex currentParam = (synthv1::ParamIndex)index;
 
@@ -334,27 +344,21 @@ void SynthV1Plugin::initParameter(uint32_t index, Parameter &parameter)
 
 float SynthV1Plugin::getParameterValue(uint32_t index) const
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
-
-	if ((synthv1_dpf::ParamIndex)index == synthv1::DCO1_SHAPE1)
-		d_stderr("Get DCO_SHAPE1 value = %f", fSynthesizer->paramValue(synthv1::DCO1_SHAPE1));
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, 0.0f)
 
 	return fSynthesizer->paramValue((synthv1::ParamIndex)index);
 }
 
 void SynthV1Plugin::setParameterValue(uint32_t index, float value)
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
-
-	if ((synthv1_dpf::ParamIndex)index == synthv1::DCO1_SHAPE1)
-		d_stderr("Set DCO_SHAPE1 value = %f", value);
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, )
 
 	fSynthesizer->setParamValue((synthv1::ParamIndex)index, value);
 }
 
 void SynthV1Plugin::activate()
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, )
 
 	fSynthesizer->activate();
 }
@@ -362,14 +366,14 @@ void SynthV1Plugin::activate()
 void SynthV1Plugin::run(const float **inputs, float **outputs, uint32_t frames, const MidiEvent *midiEvents,
 						uint32_t midiEventCount)
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, )
 
 	fSynthesizer->run(inputs, outputs, frames, midiEvents, midiEventCount);
 }
 
 void SynthV1Plugin::sampleRateChanged(double newSampleRate)
 {
-	DISTRHO_SAFE_ASSERT(fSynthesizer != nullptr)
+	DISTRHO_SAFE_ASSERT_RETURN(fSynthesizer != nullptr, )
 
 	fSynthesizer->setSampleRate(newSampleRate);
 }
