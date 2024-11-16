@@ -26,6 +26,14 @@
 #include "veeone_filter_widget.hpp"
 
 // ------------------------------------------------------------------
+// Helper macros
+
+inline constexpr const char* __valueMenuId(synthv1::ParamIndex index)
+{
+    return std::string(synthv1_param::paramName(index)).append("##Menu").c_str();
+}
+
+// ------------------------------------------------------------------
 // UI Helpers
 
 void SynthV1PluginUI::_addKnob(const char* label, synthv1::ParamIndex paramIndex, bool isZeroMeansOff)
@@ -65,7 +73,11 @@ void SynthV1PluginUI::_addKnob(const char* label, synthv1::ParamIndex paramIndex
     // But it is not suitable for synthv1, since the scale of displayed value and actual value are differ.
     // To avoid misleading users, I replaced the drag button with a simple button.
     // TODO: Allow users to input new value via a pop-up box.
-    ImGui::Button(_format.append("###").append(std::string(label)).c_str(), ImVec2(VEEONE_KNOB_SIZE, 0));
+    _createValueMenu(paramIndex);
+    if (ImGui::Button(_format.append("##").append(__valueMenuId(paramIndex)).c_str(), ImVec2(VEEONE_KNOB_SIZE, 0)))
+    {
+        ImGui::OpenPopup(__valueMenuId(paramIndex));
+    }
 
     ImGui::EndGroup();
 }
@@ -254,6 +266,69 @@ void SynthV1PluginUI::_addKeyboardModeSelector(const char* label, synthv1::Param
     }
 
     ImGui::EndGroup();
+}
+
+void SynthV1PluginUI::_createValueMenu(synthv1::ParamIndex paramIndex)
+{
+    DISTRHO_SAFE_ASSERT_RETURN(paramIndex >= 0 && paramIndex < synthv1::NUM_PARAMS, )
+
+    if (ImGui::BeginPopupContextItem(__valueMenuId(paramIndex)))
+    {
+        //
+        // Allow users to set parameter value via input box
+        //
+
+        ImGui::Text("Set value:");
+        if (synthv1_param::paramInt(paramIndex))
+        {
+            int new_value = (int)fParamStorage[paramIndex];
+
+            if (ImGui::InputInt(std::string(synthv1_param::paramName(paramIndex)).append("##Input").c_str(), &new_value))
+            {
+                if (ImGui::IsItemActivated())
+                    editParameter(paramIndex, true);
+
+                new_value = (int)synthv1_param::paramSafeValue(paramIndex, float(new_value));
+
+                setParameterValue(paramIndex, (float)new_value);
+                parameterChanged(paramIndex, (float)new_value);    // Trigger param storage update & repaint
+            }
+        } else {
+            bool should_do_100x_scale = (synthv1_param::paramMinValue(paramIndex) == 0.0 && synthv1_param::paramMaxValue(paramIndex) == 1.0);
+            float new_value = should_do_100x_scale ? fParamStorage[paramIndex] * 100.0f : fParamStorage[paramIndex];
+
+            if (ImGui::InputFloat(std::string(synthv1_param::paramName(paramIndex)).append("##Input").c_str(), &new_value, 1.0f, 2.0f))
+            {
+                if (ImGui::IsItemActivated())
+                    editParameter(paramIndex, true);
+
+                new_value = should_do_100x_scale ? synthv1_param::paramSafeValue(paramIndex, new_value / 100.0f)
+                                                    : synthv1_param::paramSafeValue(paramIndex, new_value);
+
+                setParameterValue(paramIndex, new_value);
+                parameterChanged(paramIndex, new_value);    // Trigger param storage update & repaint
+            }
+        }
+
+        if (ImGui::IsItemDeactivated())
+        {
+            editParameter(paramIndex, false);
+        }
+
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        //
+        // Reset parameter to default
+        //
+        if (ImGui::Selectable(std::string("Reset to Default##").append(synthv1_param::paramName(paramIndex)).c_str()))
+        {
+            setParameterValue(paramIndex, synthv1_param::paramDefaultValue(paramIndex));
+            parameterChanged(paramIndex, synthv1_param::paramDefaultValue(paramIndex));    // Trigger param storage update & repaint
+        }
+
+
+        ImGui::EndPopup();
+    }
 }
 
 // end of synthv1_dpfui_helpers.cpp

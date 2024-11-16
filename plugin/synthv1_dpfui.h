@@ -56,6 +56,7 @@ private:
     void _addKnob(const char* label, synthv1::ParamIndex paramIndex, bool isZeroMeansOff = false);   // Basic knob
     void _addKnobInt(const char* label, synthv1::ParamIndex paramIndex);
     void _addCheckbox(const char* label, synthv1::ParamIndex paramIndex);
+    void _createValueMenu(synthv1::ParamIndex paramIndex);
 
     void _addWaveSelector(const char* label, synthv1::ParamIndex paramIndex);
     void _addFilterTypeSelector(const char* label, synthv1::ParamIndex paramIndex);
