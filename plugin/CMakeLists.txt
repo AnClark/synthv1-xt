@@ -105,6 +105,7 @@ dpf_add_plugin (${PROJECT_NAME}
     synthv1_dpfui.cpp
     synthv1_dpfui_helpers.cpp
     synthv1_dpfui_utils.cpp
+    synthv1_preset.cpp
     ${VIEWS_DIR}/synthv1view_synth.cpp
     ${VIEWS_DIR}/synthv1view_effects.cpp
     ${DPF_WIDGETS_DIR}/opengl/DearImGui.cpp
@@ -157,6 +158,10 @@ target_link_libraries (${PROJECT_NAME}    PUBLIC
   Qt${QT_VERSION_MAJOR}::Xml
   ${PROJECT_NAME}_core
 )
+
+# MXML stuff.
+target_include_directories (${PROJECT_NAME}-ui PRIVATE ${MXML_DIR})
+target_link_libraries (${PROJECT_NAME}-ui PRIVATE mxml4)
 
 
 #

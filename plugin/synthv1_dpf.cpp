@@ -99,8 +99,8 @@ void synthv1_dpf::run(const float **inputs, float **outputs, uint32_t nframes, c
 			}
 		}
 
-		// Handle panic (SysEx "F0 7B") event.
-		_checkAndHandlePanicEvent(event);
+		// Handle SysEx event (e.g. Panic).
+		_checkAndHandleSysExEvent(event);
 
 		// Handle all MIDI events.
 		synthv1::process_midi(const_cast<uint8_t*>(event.data), event.size);
@@ -133,7 +133,7 @@ void synthv1_dpf::run(const float **inputs, float **outputs, uint32_t nframes, c
 //        (However, in future, to implement MIDI Learn, UI direct access may be essential!)
 //
 //        I define SysEx "F0 7B" as "panic" command. "7B" is the same as MIDI_ALL_NOTES_OFF.
-void synthv1_dpf::_checkAndHandlePanicEvent(const MidiEvent& currentEvent)
+void synthv1_dpf::_checkAndHandleSysExEvent(const MidiEvent& currentEvent)
 {
 	const int status  = (currentEvent.data[0] & 0xf0);
 	const int key = (currentEvent.data[1] & 0x7f);
@@ -142,6 +142,29 @@ void synthv1_dpf::_checkAndHandlePanicEvent(const MidiEvent& currentEvent)
 	{
 		d_stderr2("Panic command (F0 7B) detected");
 		synthv1::reset();
+	}
+	else if (status == 0xf0 && key == 0x7e)  [[unlikely]]
+	{
+		// d_stderr2("Action request 'before loading preset' (F0 7E) detected");
+
+		fRunningState = this->running(false);
+
+		this->setTuningEnabled(false);
+		this->reset();
+	}
+	else if (status == 0xf0 && key == 0x7f)  [[unlikely]]
+	{
+		// d_stderr2("Action request 'after loading preset' (F0 7F) detected");
+
+		this->stabilize();
+		this->reset();
+		this->running(fRunningState);
+	}
+	else if (status == 0xf0 && key == 0x7c)  [[unlikely]]
+	{
+		d_stderr2("Stabilize command (F0 7C) detected");
+
+		this->stabilize();
 	}
 }
 

@@ -60,7 +60,8 @@ protected:
 
 private:
 
-	void _checkAndHandlePanicEvent(const MidiEvent& currentEvent);
+	void _checkAndHandleSysExEvent(const MidiEvent& currentEvent);
+	bool fRunningState;    // Saves current running state of synthesizer. Used by "load/save preset" feature.
 };
 
 

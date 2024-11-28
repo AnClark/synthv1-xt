@@ -129,6 +129,23 @@ void SynthV1PluginUI::_panic()
 	sendNote(0xF0, 0x7B, 0);  //I defined SysEx "F0 7B" as Panic command. "7B" is the same as MIDI_ALL_NOTES_OFF.
 }
 
+void SynthV1PluginUI::_actionBeforeLoadingPreset()
+{
+	// I defined SysEx "F0 7E" as the command for actions before loading a preset.
+	sendNote(0xF0, 0x7E, 0);
+}
+
+void SynthV1PluginUI::_actionAfterLoadingPreset()
+{
+	// I defined SysEx "F0 7F" as the command for actions after loading a preset.
+	sendNote(0xF0, 0x7F, 0);
+}
+
+void SynthV1PluginUI::_requestStabilize()
+{
+	// I defined SysEx "F0 7C" as the command for requesting the synthesizer to stabilize.
+	sendNote(0xF0, 0x7C, 0);
+}
 
 // --------------------------------------------------------------------------
 // Global functions.

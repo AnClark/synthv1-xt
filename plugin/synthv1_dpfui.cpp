@@ -60,6 +60,9 @@ SynthV1PluginUI::SynthV1PluginUI()
     // Obtain plugin config dir
     fConfigDir = get_system_config_dir() + "/synthv1";
     d_stderr("Config dir: %s", fConfigDir.buffer());
+
+    // Initialize preset manager
+    fPresetManager = std::make_unique<synthv1_preset_manager>(this);
 }
 
 // ----------------------------------------------------------------------------------------------------------------

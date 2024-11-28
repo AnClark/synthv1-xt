@@ -114,6 +114,9 @@ find_package (Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Xml)
 
 #find_package (Qt${QT_VERSION_MAJOR}LinguistTools)
 
+# Build MXML (Mini-XML)
+include (${PROJECT_SOURCE_DIR}/cmake/BuildMxml4.cmake)
+
 include (CheckIncludeFile)
 include (CheckIncludeFiles)
 include (CheckIncludeFileCXX)
