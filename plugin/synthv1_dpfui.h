@@ -23,6 +23,7 @@
 #define __synthv1_dpfui_h
 
 #include "DistrhoUI.hpp"
+#include "synthv1_preset.h"
 #include "synthv1_ui.h"
 
 #include "synthv1_wave.h"
@@ -52,6 +53,9 @@ private:
     ResizeHandle fResizeHandle;
 
     String fConfigDir;
+
+    std::unique_ptr<synthv1_preset_manager> fPresetManager;
+    friend synthv1_preset_manager;
 
     synthv1_wave_lf fOscWave1, fOscWave2, fLfoWave;
 
@@ -91,7 +95,11 @@ private:
 
     void _randomParams();
     void _panic();
-    
+
+    void _actionBeforeLoadingPreset();
+    void _actionAfterLoadingPreset();
+    void _requestStabilize();
+
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SynthV1PluginUI)
 };

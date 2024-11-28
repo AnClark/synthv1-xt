@@ -10,3 +10,6 @@
 [submodule "ui/veeone-widgets"]
 	path = ui/veeone-widgets
 	url = https://github.com/AnClark/veeone-widget-demo.git
+[submodule "deps/mxml"]
+	path = deps/mxml
+	url = https://github.com/michaelrsweet/mxml.git
