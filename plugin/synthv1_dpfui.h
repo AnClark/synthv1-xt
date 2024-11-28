@@ -43,6 +43,9 @@ class SynthV1PluginUI : public UI
 public:
     SynthV1PluginUI();
 
+    uint32_t loadPreset(const char* sPresetXml);
+    String savePreset(const char* presetName);
+
 protected:
     void parameterChanged(uint32_t index, float value) override;
     void onImGuiDisplay() override;
@@ -91,6 +94,10 @@ private:
 
     void _randomParams();
     void _panic();
+
+    void _actionBeforeLoadingPreset();
+    void _actionAfterLoadingPreset();
+    void _requestStabilize();
     
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SynthV1PluginUI)
